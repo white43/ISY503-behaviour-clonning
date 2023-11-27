@@ -1,3 +1,7 @@
 eventlet>=0.33, <0.34
 flask>=3, <4
+keras>=2, <3
+numpy>=1, <2
+pandas>=2, <3
+Pillow-SIMD>=9, <10
 python-socketio==4.2.1
