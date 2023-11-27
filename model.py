@@ -119,7 +119,7 @@ def get_datasets_from_logs(logs: pd.DataFrame) -> (np.ndarray, np.ndarray, np.nd
 def build_model() -> Sequential:
     model = Sequential()
 
-    model.add(Lambda(lambda x: x / 255, input_shape=(cropped_height(), cropped_height(), origin_colours)))
+    model.add(Lambda(lambda x: x / 255, input_shape=(cropped_height(), cropped_width(), origin_colours)))
     model.add(Conv2D(filters=32, kernel_size=(5, 5), strides=(2, 2), activation="relu"))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Conv2D(filters=32, kernel_size=(3, 3), activation="relu"))
