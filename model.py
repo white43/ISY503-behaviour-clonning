@@ -63,6 +63,8 @@ def get_driving_logs() -> pd.DataFrame:
     clear_data_list: list[pd.DataFrame] = []
 
     for source in sources:
+        print("Reading " + source, file=sys.stderr)
+
         csv = pd.read_csv(
             source + '/driving_log.csv',
             delimiter=',',
