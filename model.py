@@ -5,7 +5,7 @@ from getopt import getopt
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from PIL import Image, ImageOps
+from PIL import Image, ImageFilter, ImageOps
 from keras.callbacks import Callback, ModelCheckpoint
 from keras.layers import Conv2D, Dense, Flatten, Lambda, MaxPooling2D
 from keras.losses import MSE
@@ -69,6 +69,16 @@ def flip_horizontally(img: Image) -> Image:
     return flipped
 
 
+def blur(img: Image) -> Image:
+    blurred = img.filter(ImageFilter.GaussianBlur(3))
+
+    if debug and np.random.rand() < 0.001:
+        img.save("debug_augmentation_blur_origin.jpg")
+        blurred.save("debug_augmentation_blur_processed.jpg")
+
+    return blurred
+
+
 def get_driving_logs() -> pd.DataFrame:
     clear_data_list: list[pd.DataFrame] = []
 
@@ -122,6 +132,9 @@ def get_datasets_from_logs(logs: pd.DataFrame) -> (np.ndarray, np.ndarray, np.nd
             if np.random.rand() < 0.5:
                 image = flip_horizontally(image)
                 steering *= -1
+
+            if np.random.rand() < 0.5:
+                image = blur(image)
 
             train_x.append(np.asarray(image))
             train_y.append(steering)
