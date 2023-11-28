@@ -88,6 +88,9 @@ def event_telemetry_handler(sig: str, msg: dict):
 server.on('connect', event_connect_handler)
 server.on('telemetry', event_telemetry_handler)
 
+if file == "" and os.path.exists("model.h5"):
+    file = "model.h5"
+
 if file == "":
     models = glob.glob("./model-2023-*")
     models.sort(reverse=False)
