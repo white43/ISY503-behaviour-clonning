@@ -67,6 +67,9 @@ def event_telemetry_handler(sig: str, msg: dict):
         img = Image.open(BytesIO(base64.b64decode(img_center)))
         img = crop(img)
 
+        if np.random.rand() < 0.1:
+            img.save("debug_autonomous_driving.jpg")
+
         image_array = np.asarray(img).reshape([1, cropped_height(), cropped_width(), origin_colours])
 
         predicted = model.predict(image_array, verbose=0)
