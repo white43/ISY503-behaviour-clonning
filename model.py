@@ -90,6 +90,13 @@ def grayscale(img: Image) -> Image:
     return grayed
 
 
+def add_gray_layer_to_rgb_image(rgb: Image) -> np.ndarray:
+    rgb_array = np.asarray(rgb)
+    grayscale_array = np.asarray(grayscale(rgb))
+
+    return np.concatenate((rgb_array, np.expand_dims(grayscale_array, axis=-1)), axis=2)
+
+
 def get_driving_logs() -> pd.DataFrame:
     clear_data_list: list[pd.DataFrame] = []
 
@@ -153,11 +160,13 @@ def get_datasets_from_logs(logs: pd.DataFrame) -> (np.ndarray, np.ndarray, np.nd
             origin_image_height - crop_bottom,
         ))
 
+        image = np.asarray(image)
+
         if training_image:
-            train_x.append(np.asarray(image))
+            train_x.append(image)
             train_y.append(steering)
         else:
-            val_x.append(np.asarray(image))
+            val_x.append(image)
             val_y.append(steering)
 
     return np.asarray(train_x), np.asarray(train_y), np.asarray(val_x), np.asarray(val_y)
