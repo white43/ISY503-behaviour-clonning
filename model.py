@@ -110,16 +110,27 @@ def get_datasets_from_logs(logs: pd.DataFrame) -> (np.ndarray, np.ndarray, np.nd
     for index, row in logs.iterrows():
         steering = row['steering']
 
-        rand = np.random.rand()
+        match np.random.choice(3):
+            case 0:
+                image = Image.open(row['center'])
+            case 1:
+                image = Image.open(row['left'])
+                steering += extra_steering
+            case 2:
+                image = Image.open(row['right'])
+                steering -= extra_steering
+            case _:
+                raise Exception("unexpected choice")
 
-        if rand < 1 / 3:
-            image = Image.open(row['center'])
-        elif rand < 2 / 3:
-            image = Image.open(row['left'])
-            steering += extra_steering
-        else:
-            image = Image.open(row['right'])
-            steering -= extra_steering
+        training_image = np.random.rand() > validation_data_percent
+
+        if training_image:
+            if np.random.rand() < 0.5:
+                image = flip_horizontally(image)
+                steering *= -1
+
+            if np.random.rand() < 0.5:
+                image = blur(image)
 
         image = image.crop((
             crop_left,
@@ -128,14 +139,7 @@ def get_datasets_from_logs(logs: pd.DataFrame) -> (np.ndarray, np.ndarray, np.nd
             origin_image_height - crop_bottom,
         ))
 
-        if np.random.rand() > validation_data_percent:
-            if np.random.rand() < 0.5:
-                image = flip_horizontally(image)
-                steering *= -1
-
-            if np.random.rand() < 0.5:
-                image = blur(image)
-
+        if training_image:
             train_x.append(np.asarray(image))
             train_y.append(steering)
         else:
