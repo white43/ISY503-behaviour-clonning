@@ -79,6 +79,17 @@ def blur(img: Image) -> Image:
     return blurred
 
 
+def grayscale(img: Image) -> Image:
+    grayed = ImageOps.grayscale(img)
+    grayed = Image.merge('RGB', (grayed, grayed, grayed))
+
+    if debug and np.random.rand() < 0.001:
+        img.save("debug_augmentation_grayscale_origin.jpg")
+        grayed.save("debug_augmentation_grayscale_processed.jpg")
+
+    return grayed
+
+
 def get_driving_logs() -> pd.DataFrame:
     clear_data_list: list[pd.DataFrame] = []
 
@@ -131,6 +142,9 @@ def get_datasets_from_logs(logs: pd.DataFrame) -> (np.ndarray, np.ndarray, np.nd
 
             if np.random.rand() < 0.5:
                 image = blur(image)
+
+            if np.random.rand() < 0.5:
+                image = grayscale(image)
 
         image = image.crop((
             crop_left,
