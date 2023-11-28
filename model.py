@@ -5,7 +5,7 @@ from getopt import getopt
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from PIL import Image
+from PIL import Image, ImageOps
 from keras.callbacks import Callback, ModelCheckpoint
 from keras.layers import Conv2D, Dense, Flatten, Lambda, MaxPooling2D
 from keras.losses import MSE
@@ -59,6 +59,16 @@ def cropped_width() -> int:
     return origin_image_width - crop_left - crop_right
 
 
+def flip_horizontally(img: Image) -> Image:
+    flipped = ImageOps.mirror(img)
+
+    if debug and np.random.rand() < 0.001:
+        img.save("debug_augmentation_flip_origin.jpg")
+        flipped.save("debug_augmentation_flip_processed.jpg")
+
+    return flipped
+
+
 def get_driving_logs() -> pd.DataFrame:
     clear_data_list: list[pd.DataFrame] = []
 
@@ -109,6 +119,10 @@ def get_datasets_from_logs(logs: pd.DataFrame) -> (np.ndarray, np.ndarray, np.nd
         ))
 
         if np.random.rand() > validation_data_percent:
+            if np.random.rand() < 0.5:
+                image = flip_horizontally(image)
+                steering *= -1
+
             train_x.append(np.asarray(image))
             train_y.append(steering)
         else:
