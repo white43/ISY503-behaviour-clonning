@@ -81,13 +81,16 @@ def blur(img: Image) -> Image:
 
 def grayscale(img: Image) -> Image:
     grayed = ImageOps.grayscale(img)
-    grayed = Image.merge('RGB', (grayed, grayed, grayed))
 
     if debug and np.random.rand() < 0.001:
         img.save("debug_augmentation_grayscale_origin.jpg")
         grayed.save("debug_augmentation_grayscale_processed.jpg")
 
     return grayed
+
+
+def three_dimensional_grayscale(img: Image) -> Image:
+    return Image.merge('RGB', (img, img, img))
 
 
 def add_gray_layer_to_rgb_image(rgb: Image) -> np.ndarray:
@@ -152,6 +155,7 @@ def get_datasets_from_logs(logs: pd.DataFrame) -> (np.ndarray, np.ndarray, np.nd
 
             if np.random.rand() < 0.5:
                 image = grayscale(image)
+                image = three_dimensional_grayscale(image)
 
         image = image.crop((
             crop_left,
