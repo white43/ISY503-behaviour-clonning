@@ -5,6 +5,7 @@ import sys
 from datetime import datetime as dt
 from getopt import getopt
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -259,6 +260,17 @@ def build_model() -> Sequential:
     return model
 
 
+def draw_plot(iterations, *args):
+    for i in range(0, len(args)-1, 2):
+        plt.plot(range(1, iterations + 1), args[i], label=args[i+1])
+
+    plt.xlabel('Iteration')
+    plt.ylabel('Loss')
+    plt.legend(loc='best', fontsize='small')
+
+    plt.savefig("Loss history.jpg")
+
+
 def model_callback_list() -> list[Callback]:
     list: list[Callback] = []
 
@@ -278,5 +290,10 @@ def model_callback_list() -> list[Callback]:
 if __name__ == '__main__':
     logs = get_driving_logs()
     train_X, train_Y, val_X, val_Y = get_datasets_from_logs(logs)
-    model = build_model()
-    model.fit(train_X, train_Y, validation_data=(val_X, val_Y), epochs=5, callbacks=model_callback_list())
+    history = model.fit(train_X, train_Y, validation_data=(val_X, val_Y), epochs=5, callbacks=model_callback_list())
+
+    draw_plot(
+        history.params['epochs'],
+        history.history['val_loss'], 'Validation Loss',
+        history.history['loss'], 'Train loss',
+    )
