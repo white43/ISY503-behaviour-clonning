@@ -254,7 +254,7 @@ def build_model() -> Sequential:
     model.add(Dense(units=10, activation="relu"))
     model.add(Dense(units=1))
 
-    model.compile(loss=MSE, optimizer=Adam())
+    model.compile(loss=MSE, optimizer=Adam(learning_rate=0.001))
 
     return model
 
