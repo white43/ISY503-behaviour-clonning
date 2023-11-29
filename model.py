@@ -10,7 +10,7 @@ import pandas as pd
 import tensorflow as tf
 from PIL import Image, ImageFilter, ImageOps
 from keras.callbacks import Callback, ModelCheckpoint
-from keras.layers import Conv2D, Dense, Flatten, Lambda, MaxPooling2D
+from keras.layers import Conv2D, Dense, Dropout, Flatten, Lambda, MaxPooling2D
 from keras.losses import MSE
 from keras.models import Sequential
 from keras.optimizers import Adam
@@ -235,16 +235,21 @@ def get_datasets_from_logs(logs: pd.DataFrame) -> (np.ndarray, np.ndarray, np.nd
 def build_model() -> Sequential:
     model = Sequential()
 
-    model.add(Lambda(lambda x: x / 255, input_shape=(cropped_height(), cropped_width(), origin_colours)))
-    model.add(Conv2D(filters=32, kernel_size=(5, 5), strides=(2, 2), activation="relu"))
+    model.add(Lambda(lambda x: x / 127.5 - 1.0, input_shape=(cropped_height(), cropped_width(), origin_colours)))
+    model.add(Conv2D(filters=32, kernel_size=(5, 5), strides=(3, 3), activation="relu"))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Conv2D(filters=32, kernel_size=(3, 3), activation="relu"))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Conv2D(filters=32, kernel_size=(3, 3), activation="relu"))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Conv2D(filters=32, kernel_size=(3, 3), activation="relu"))
-    model.add(Flatten())  # 512 pixels
+    model.add(Conv2D(filters=48, kernel_size=(3, 3), strides=(2, 2), activation="relu"))
+    model.add(Conv2D(filters=64, kernel_size=(3, 3), strides=(2, 2), activation="relu"))
+    model.add(Dropout(0.25))
+    model.add(Flatten())  # 1536 pixels
+    model.add(Dropout(0.25))
+    model.add(Dense(units=500, activation="relu"))
+    model.add(Dropout(0.25))
     model.add(Dense(units=100, activation="relu"))
+    model.add(Dropout(0.25))
+    model.add(Dense(units=50, activation="relu"))
+    model.add(Dropout(0.25))
+    model.add(Dense(units=10, activation="relu"))
     model.add(Dense(units=1))
 
     model.compile(loss=MSE, optimizer=Adam())
