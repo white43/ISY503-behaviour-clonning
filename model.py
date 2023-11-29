@@ -288,6 +288,9 @@ def model_callback_list() -> list[Callback]:
 
 
 if __name__ == '__main__':
+    model = build_model()
+    print(model.summary())
+
     logs = get_driving_logs()
     train_X, train_Y, val_X, val_Y = get_datasets_from_logs(logs)
     history = model.fit(train_X, train_Y, validation_data=(val_X, val_Y), epochs=5, callbacks=model_callback_list())
