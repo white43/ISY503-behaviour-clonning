@@ -220,6 +220,8 @@ def get_datasets_from_logs(logs: pd.DataFrame) -> (np.ndarray, np.ndarray, np.nd
             origin_image_height - crop_bottom,
         ))
 
+        # image = add_gray_layer_to_rgb_image(image)
+
         image = np.asarray(image)
 
         if training_image:
