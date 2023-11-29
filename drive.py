@@ -12,16 +12,18 @@ from PIL import Image
 from flask import Flask
 from keras.models import load_model
 
-from model import crop, cropped_width, cropped_height, origin_colours
+from model import crop, cropped_width, cropped_height, origin_colours, save_autonomous_image
 
 debug: bool = True
 
 file: str = ""
+save_image_to: str = ""
 speed_limit: int = 15
 
 cli_longopts = [
     "debug",
     "file=",
+    "save-image-to=",
 ]
 
 opts, args = getopt(sys.argv[1:], shortopts="", longopts=cli_longopts)
@@ -31,6 +33,8 @@ for opt, arg in opts:
         debug = True
     elif opt == "--file":
         file = arg
+    elif opt == "--save-image-to":
+        save_image_to = arg
 
 server = socketio.Server()
 app = Flask(import_name="ISY503 A3 Group 5")
@@ -65,6 +69,8 @@ def event_telemetry_handler(sig: str, msg: dict):
         img_center = msg["image"]
         speed = float(msg["speed"])
         img = Image.open(BytesIO(base64.b64decode(img_center)))
+        origin = img
+
         img = crop(img)
 
         if np.random.rand() < 0.1:
@@ -73,14 +79,18 @@ def event_telemetry_handler(sig: str, msg: dict):
         image_array = np.asarray(img).reshape([1, cropped_height(), cropped_width(), origin_colours])
 
         predicted = model.predict(image_array, verbose=0)
+        steering = round(float(predicted[0][0]), 3)
 
         control = {
-            "steering_angle": round(float(predicted[0][0]), 3).__str__(),
+            "steering_angle": steering.__str__(),
             "throttle": choose_throttle(speed).__str__(),
         }
 
         if debug is True:
             print(control)
+
+        if save_image_to != "":
+            save_autonomous_image(save_image_to, origin, steering)
 
     server.emit(mode, data=control, skip_sid=True)
 

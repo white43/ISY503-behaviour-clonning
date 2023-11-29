@@ -1,3 +1,6 @@
+import csv
+import os
+import pathlib
 import sys
 from datetime import datetime as dt
 from getopt import getopt
@@ -103,6 +106,23 @@ def add_gray_layer_to_rgb_image(rgb: Image) -> np.ndarray:
     grayscale_array = np.asarray(grayscale(rgb))
 
     return np.concatenate((rgb_array, np.expand_dims(grayscale_array, axis=-1)), axis=2)
+
+
+def save_autonomous_image(path: str, image: Image, steering: float) -> None:
+    img_subdir: str = "/IMG/"
+    write_mode = "a"
+
+    if not os.path.exists(path):
+        pathlib.Path(path + img_subdir).mkdir(parents=True, exist_ok=True)
+        write_mode = "w"
+
+    basename = dt.now().strftime("%Y-%m-%d-%H-%M-%S-%f") + ".jpg"
+    image.save(path + img_subdir + basename)
+
+    with open(path + "/driving_log.csv", write_mode) as fd:
+        writer = csv.writer(fd)
+        writer.writerow([img_subdir + basename, "", "", str(steering)])
+        fd.close()
 
 
 def is_autonomous_row(row: Series) -> bool:
