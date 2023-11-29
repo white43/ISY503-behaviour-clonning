@@ -11,6 +11,7 @@ from keras.layers import Conv2D, Dense, Flatten, Lambda, MaxPooling2D
 from keras.losses import MSE
 from keras.models import Sequential
 from keras.optimizers import Adam
+from pandas import Series
 
 print(tf.__version__)
 
@@ -19,6 +20,7 @@ debug: bool = True
 sources: list[str] = []
 extra_steering: float = 0.15
 validation_data_percent: float = 0.3
+train_on_autonomous_center: bool = False
 
 origin_image_width: int = 320
 origin_image_height: int = 160
@@ -31,6 +33,7 @@ crop_bottom: int = 25
 cli_longopts: list[str] = [
     "debug",
     "sources=",
+    "train-on-autonomous-center",
 ]
 
 opts, args = getopt(sys.argv[1:], shortopts="", longopts=cli_longopts)
@@ -40,6 +43,8 @@ for opt, arg in opts:
         debug = True
     elif opt == "--sources":
         sources = arg.split(',')
+    elif opt == "--train-on-autonomous-center":
+        train_on_autonomous_center = True
 
 
 def crop(img: Image) -> Image:
@@ -100,6 +105,43 @@ def add_gray_layer_to_rgb_image(rgb: Image) -> np.ndarray:
     return np.concatenate((rgb_array, np.expand_dims(grayscale_array, axis=-1)), axis=2)
 
 
+def is_autonomous_row(row: Series) -> bool:
+    return pd.isna(row['right']) and pd.isna(row['left'])
+
+
+def get_unit_of_data_from_autonomous_data(row: Series, steering: float) -> (Image, float):
+    if is_autonomous_row(row):
+        image = Image.open(row['center'])
+    else:
+        match np.random.choice(2):
+            case 0:
+                image = Image.open(row['left'])
+                steering += extra_steering
+            case 1:
+                image = Image.open(row['right'])
+                steering -= extra_steering
+            case _:
+                raise Exception("unexpected choice")
+
+    return image, steering
+
+
+def get_unit_of_data_from_human_gathered_data(row: Series, steering: float) -> (Image, float):
+    match np.random.choice(3):
+        case 0:
+            image = Image.open(row['center'])
+        case 1:
+            image = Image.open(row['left'])
+            steering += extra_steering
+        case 2:
+            image = Image.open(row['right'])
+            steering -= extra_steering
+        case _:
+            raise Exception("unexpected choice")
+
+    return image, steering
+
+
 def get_driving_logs() -> pd.DataFrame:
     clear_data_list: list[pd.DataFrame] = []
 
@@ -114,7 +156,8 @@ def get_driving_logs() -> pd.DataFrame:
         )
 
         for column in ['center', 'left', 'right']:
-            csv[column] = csv[column].map(lambda path: "%s/%s" % (source, "/".join(path.split('/')[-2:])))
+            if csv[column].count() > 0:
+                csv[column] = csv[column].map(lambda path: "%s/%s" % (source, "/".join(path.split('/')[-2:])))
 
         clear_data_list.append(csv)
 
@@ -131,17 +174,10 @@ def get_datasets_from_logs(logs: pd.DataFrame) -> (np.ndarray, np.ndarray, np.nd
     for index, row in logs.iterrows():
         steering = row['steering']
 
-        match np.random.choice(3):
-            case 0:
-                image = Image.open(row['center'])
-            case 1:
-                image = Image.open(row['left'])
-                steering += extra_steering
-            case 2:
-                image = Image.open(row['right'])
-                steering -= extra_steering
-            case _:
-                raise Exception("unexpected choice")
+        if train_on_autonomous_center:
+            image, steering = get_unit_of_data_from_autonomous_data(row, steering)
+        else:
+            image, steering = get_unit_of_data_from_human_gathered_data(row, steering)
 
         training_image = np.random.rand() > validation_data_percent
 
