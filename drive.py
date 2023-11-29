@@ -12,13 +12,15 @@ from PIL import Image
 from flask import Flask
 from keras.models import load_model
 
-from model import crop, cropped_width, cropped_height, origin_colours, save_autonomous_image
+from model import crop, cropped_width, cropped_height, origin_colours, save_autonomous_image, grayscale
 
 debug: bool = True
 
 file: str = ""
 save_image_to: str = ""
 speed_limit: int = 15
+
+grayscale_model: bool = False
 
 cli_longopts = [
     "debug",
@@ -73,6 +75,9 @@ def event_telemetry_handler(sig: str, msg: dict):
 
         img = crop(img)
 
+        if grayscale_model:
+            img = grayscale(img)
+
         if np.random.rand() < 0.1:
             img.save("debug_autonomous_driving.jpg")
 
@@ -109,6 +114,15 @@ if file == "":
 print("Model %s is chosen to be used as a target" % file)
 
 model = load_model(file, safe_mode=False)
+
+model_config = model.get_config()
+input_shape = model_config['layers'][0]['config']['batch_input_shape']
+
+if input_shape[3] == 1:
+    origin_colours = input_shape[3]
+    grayscale_model = True
+    print("This model is trained on grayscale images. Colour setting have been adjusted...")
+
 
 app = socketio.Middleware(server, app)
 eventlet.wsgi.server(eventlet.listen(('', 4567)), app)
