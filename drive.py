@@ -12,7 +12,7 @@ from PIL import Image
 from flask import Flask
 from keras.models import load_model
 
-from model import crop, cropped_width, cropped_height, origin_colours, save_autonomous_image, grayscale
+from model import crop, cropped_width, cropped_height, origin_colours, save_autonomous_image, grayscale, equalize
 
 debug: bool = True
 
@@ -74,6 +74,7 @@ def event_telemetry_handler(sig: str, msg: dict):
         origin = img
 
         img = crop(img)
+        img = equalize(img)
 
         if grayscale_model:
             img = grayscale(img)

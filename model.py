@@ -109,6 +109,16 @@ def add_gray_layer_to_rgb_image(rgb: Image) -> np.ndarray:
     return np.concatenate((rgb_array, np.expand_dims(grayscale_array, axis=-1)), axis=2)
 
 
+def equalize(img: Image) -> Image:
+    equalized = ImageOps.equalize(img)
+
+    if debug and np.random.rand() < 0.001:
+        img.save("debug_augmentation_equalize_origin.jpg")
+        equalized.save("debug_augmentation_equalize_processed.jpg")
+
+    return equalized
+
+
 def save_autonomous_image(path: str, image: Image, steering: float) -> None:
     img_subdir: str = "/IMG/"
     write_mode = "a"
@@ -220,6 +230,8 @@ def get_datasets_from_logs(logs: pd.DataFrame) -> (np.ndarray, np.ndarray, np.nd
             origin_image_width - crop_right,
             origin_image_height - crop_bottom,
         ))
+
+        image = equalize(image)
 
         # image = add_gray_layer_to_rgb_image(image)
 
