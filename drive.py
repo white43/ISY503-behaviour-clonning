@@ -19,6 +19,7 @@ debug: bool = True
 file: str = ""
 save_image_to: str = ""
 speed_limit: int = 10
+sum_error: float = 0.0
 
 grayscale_model: bool = False
 
@@ -43,11 +44,17 @@ app = Flask(import_name="ISY503 A3 Group 5")
 
 
 def choose_throttle(speed: float) -> float:
+    global sum_error
     delta = 0.25
     throttle = 0.0
 
+    sum_error += speed_limit - speed
+
     if abs(speed_limit - speed) > delta:
-        throttle = (1.0 - speed / speed_limit) * 1.5
+        throttle = ((1.0 - speed / speed_limit) * 1.5) + (sum_error * 0.0025)
+
+        if throttle > 1:
+            throttle = 1
 
     if 0 <= throttle < 0.09:
         throttle = 0.09
@@ -62,6 +69,8 @@ def event_connect_handler(sid: str, _: dict):
 
 
 def event_telemetry_handler(sig: str, msg: dict):
+    global sum_error
+
     mode: str = "manual"
     control: dict[str, str] = {}
 
@@ -90,6 +99,7 @@ def event_telemetry_handler(sig: str, msg: dict):
         control = {
             "steering_angle": steering.__str__(),
             "throttle": choose_throttle(speed).__str__(),
+            "sum_error": sum_error,
         }
 
         if debug is True:
