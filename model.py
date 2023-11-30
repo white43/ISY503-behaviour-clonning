@@ -22,7 +22,7 @@ print(tf.__version__)
 debug: bool = True
 
 sources: list[str] = []
-extra_steering: float = 0.15
+extra_steering: float = 0.2
 validation_data_percent: float = 0.3
 train_on_autonomous_center: bool = False
 
@@ -293,10 +293,10 @@ if __name__ == '__main__':
 
     logs = get_driving_logs()
     train_X, train_Y, val_X, val_Y = get_datasets_from_logs(logs)
-    history = model.fit(train_X, train_Y, validation_data=(val_X, val_Y), epochs=5, callbacks=model_callback_list())
+    history = model.fit(train_X, train_Y, validation_data=(val_X, val_Y), epochs=10, callbacks=model_callback_list())
 
     draw_plot(
         history.params['epochs'],
         history.history['val_loss'], 'Validation Loss',
-        history.history['loss'], 'Train loss',
+        history.history['loss'], 'Training loss',
     )
