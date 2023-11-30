@@ -18,7 +18,7 @@ debug: bool = True
 
 file: str = ""
 save_image_to: str = ""
-speed_limit: int = 15
+speed_limit: int = 10
 
 grayscale_model: bool = False
 
