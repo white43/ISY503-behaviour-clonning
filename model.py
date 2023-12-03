@@ -173,14 +173,14 @@ def get_unit_of_data_from_human_gathered_data(row: Series, steering: float) -> (
     return image, steering
 
 
-def get_driving_logs() -> pd.DataFrame:
+def get_driving_logs(dirs: list[str]) -> pd.DataFrame:
     clear_data_list: list[pd.DataFrame] = []
 
-    for source in sources:
-        print("Reading " + source, file=sys.stderr)
+    for dir in dirs:
+        print("Reading " + dir, file=sys.stderr)
 
         csv = pd.read_csv(
-            source + '/driving_log.csv',
+            dir + '/driving_log.csv',
             delimiter=',',
             names=['center', 'left', 'right', 'steering'],
             usecols=[0, 1, 2, 3],
@@ -188,14 +188,14 @@ def get_driving_logs() -> pd.DataFrame:
 
         for column in ['center', 'left', 'right']:
             if csv[column].count() > 0:
-                csv[column] = csv[column].map(lambda path: "%s/%s" % (source, "/".join(path.split('/')[-2:])))
+                csv[column] = csv[column].map(lambda path: "%s/%s" % (dir, "/".join(path.split('/')[-2:])))
 
         clear_data_list.append(csv)
 
     return pd.concat(clear_data_list)
 
 
-def get_datasets_from_logs(logs: pd.DataFrame) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
+def get_datasets_from_logs(logs: pd.DataFrame, autonomous: bool) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
     train_x: list[np.ndarray] = []
     train_y: list[np.ndarray] = []
 
@@ -205,7 +205,7 @@ def get_datasets_from_logs(logs: pd.DataFrame) -> (np.ndarray, np.ndarray, np.nd
     for index, row in logs.iterrows():
         steering = row['steering']
 
-        if train_on_autonomous_center:
+        if autonomous:
             image, steering = get_unit_of_data_from_autonomous_data(row, steering)
         else:
             image, steering = get_unit_of_data_from_human_gathered_data(row, steering)
@@ -303,8 +303,8 @@ if __name__ == '__main__':
     model = build_model()
     print(model.summary())
 
-    logs = get_driving_logs()
-    train_X, train_Y, val_X, val_Y = get_datasets_from_logs(logs)
+    logs = get_driving_logs(sources)
+    train_X, train_Y, val_X, val_Y = get_datasets_from_logs(logs, train_on_autonomous_center)
     history = model.fit(train_X, train_Y, validation_data=(val_X, val_Y), epochs=10, callbacks=model_callback_list())
 
     draw_plot(
