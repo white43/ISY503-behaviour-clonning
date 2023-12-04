@@ -218,12 +218,12 @@ def get_datasets_from_logs(logs: pd.DataFrame, autonomous: bool) -> (np.ndarray,
                 image = flip_horizontally(image)
                 steering *= -1
 
-            if np.random.rand() < 0.5:
-                image = blur(image)
+            # if np.random.rand() < 0.5:
+            #     image = blur(image)
 
-            if np.random.rand() < 0.5:
-                image = grayscale(image)
-                image = three_dimensional_grayscale(image)
+            # if np.random.rand() < 0.5:
+            #     image = grayscale(image)
+            #     image = three_dimensional_grayscale(image)
 
         image = image.crop((
             crop_left,
