@@ -103,7 +103,7 @@ def save_autonomous_image(path: str, image: Image, steering: float) -> None:
     img_subdir: str = "IMG"
     write_mode = "a"
 
-    if not os.path.exists(path):
+    if not os.path.exists(os.path.join(path, img_subdir)):
         pathlib.Path(os.path.join(path, img_subdir)).mkdir(parents=True, exist_ok=True)
         write_mode = "w"
 
