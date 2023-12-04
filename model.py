@@ -11,7 +11,7 @@ import pandas as pd
 import tensorflow as tf
 from PIL import Image, ImageFilter, ImageOps
 from keras.callbacks import Callback, ModelCheckpoint
-from keras.layers import Conv2D, Dense, Dropout, Flatten, Lambda, MaxPooling2D
+from keras.layers import Conv2D, Dense, Dropout, Flatten, Rescaling
 from keras.losses import MSE
 from keras.models import Sequential
 from keras.optimizers import Adam
@@ -231,13 +231,13 @@ def get_datasets_from_logs(logs: pd.DataFrame, autonomous: bool) -> (np.ndarray,
 def build_model() -> Sequential:
     model = Sequential()
 
-    model.add(Lambda(lambda x: x / 127.5 - 1.0, input_shape=(cropped_height(), cropped_width(), origin_colours)))
-    model.add(Conv2D(filters=32, kernel_size=(5, 5), strides=(3, 3), activation="relu"))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Conv2D(filters=48, kernel_size=(3, 3), strides=(2, 2), activation="relu"))
+    model.add(Rescaling(1.0/127.5, offset=-1, input_shape=(cropped_height(), cropped_width(), origin_colours)))
+    model.add(Conv2D(filters=32, kernel_size=(3, 3), strides=(3, 3), activation="relu"))
+    model.add(Conv2D(filters=48, kernel_size=(3, 3), strides=(3, 3), activation="relu"))
     model.add(Conv2D(filters=64, kernel_size=(3, 3), strides=(2, 2), activation="relu"))
+    model.add(Conv2D(filters=96, kernel_size=(3, 3), activation="relu"))
     model.add(Dropout(0.25))
-    model.add(Flatten())  # 1536 pixels
+    model.add(Flatten())  # 1440 pixels
     model.add(Dropout(0.25))
     model.add(Dense(units=500, activation="relu"))
     model.add(Dropout(0.25))
@@ -285,10 +285,14 @@ if __name__ == '__main__':
     cli_opts.add_argument('--debug', default=True, action='store_true', help='Debug mode')
     cli_opts.add_argument('--sources', nargs='+', help='Path to datasets: --sources Track-1/f1 Track-1/b1', required=True)
     cli_opts.add_argument('--train-on-autonomous-center', default=False, action='store_true', help='Whether to use only autonomous center images or not')
+    cli_opts.add_argument('--print-only', default=False, action='store_true', help='Print information on layers end exit')
     options = cli_opts.parse_args()
 
     model = build_model()
-    print(model.summary())
+
+    if options.print_only:
+        print(model.summary())
+        exit(0)
 
     logs = get_driving_logs(options.sources)
     train_X, train_Y, val_X, val_Y = get_datasets_from_logs(logs, options.train_on_autonomous_center)
