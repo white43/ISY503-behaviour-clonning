@@ -1,9 +1,9 @@
+import argparse
 import csv
 import os
 import pathlib
 import sys
 from datetime import datetime as dt
-from getopt import getopt
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,12 +19,8 @@ from pandas import Series
 
 print(tf.__version__)
 
-debug: bool = True
-
-sources: list[str] = []
 extra_steering: float = 0.2
 validation_data_percent: float = 0.3
-train_on_autonomous_center: bool = False
 
 origin_image_width: int = 320
 origin_image_height: int = 160
@@ -33,22 +29,6 @@ crop_left: int = 0
 crop_top: int = 55
 crop_right: int = 0
 crop_bottom: int = 25
-
-cli_longopts: list[str] = [
-    "debug",
-    "sources=",
-    "train-on-autonomous-center",
-]
-
-opts, args = getopt(sys.argv[1:], shortopts="", longopts=cli_longopts)
-
-for opt, arg in opts:
-    if opt == "debug":
-        debug = True
-    elif opt == "--sources":
-        sources = arg.split(',')
-    elif opt == "--train-on-autonomous-center":
-        train_on_autonomous_center = True
 
 
 def crop(img: Image) -> Image:
@@ -71,7 +51,7 @@ def cropped_width() -> int:
 def flip_horizontally(img: Image) -> Image:
     flipped = ImageOps.mirror(img)
 
-    if debug and np.random.rand() < 0.001:
+    if options.debug and np.random.rand() < 0.001:
         img.save("debug_augmentation_flip_origin.jpg")
         flipped.save("debug_augmentation_flip_processed.jpg")
 
@@ -81,7 +61,7 @@ def flip_horizontally(img: Image) -> Image:
 def blur(img: Image) -> Image:
     blurred = img.filter(ImageFilter.GaussianBlur(3))
 
-    if debug and np.random.rand() < 0.001:
+    if options.debug and np.random.rand() < 0.001:
         img.save("debug_augmentation_blur_origin.jpg")
         blurred.save("debug_augmentation_blur_processed.jpg")
 
@@ -91,7 +71,7 @@ def blur(img: Image) -> Image:
 def grayscale(img: Image) -> Image:
     grayed = ImageOps.grayscale(img)
 
-    if debug and np.random.rand() < 0.001:
+    if options.debug and np.random.rand() < 0.001:
         img.save("debug_augmentation_grayscale_origin.jpg")
         grayed.save("debug_augmentation_grayscale_processed.jpg")
 
@@ -112,7 +92,7 @@ def add_gray_layer_to_rgb_image(rgb: Image) -> np.ndarray:
 def equalize(img: Image) -> Image:
     equalized = ImageOps.equalize(img)
 
-    if debug and np.random.rand() < 0.001:
+    if options.debug and np.random.rand() < 0.001:
         img.save("debug_augmentation_equalize_origin.jpg")
         equalized.save("debug_augmentation_equalize_processed.jpg")
 
@@ -301,11 +281,17 @@ def model_callback_list() -> list[Callback]:
 
 
 if __name__ == '__main__':
+    cli_opts = argparse.ArgumentParser()
+    cli_opts.add_argument('--debug', default=True, action='store_true', help='Debug mode')
+    cli_opts.add_argument('--sources', nargs='+', help='Path to datasets: --sources Track-1/f1 Track-1/b1', required=True)
+    cli_opts.add_argument('--train-on-autonomous-center', default=False, action='store_true', help='Whether to use only autonomous center images or not')
+    options = cli_opts.parse_args()
+
     model = build_model()
     print(model.summary())
 
-    logs = get_driving_logs(sources)
-    train_X, train_Y, val_X, val_Y = get_datasets_from_logs(logs, train_on_autonomous_center)
+    logs = get_driving_logs(options.sources)
+    train_X, train_Y, val_X, val_Y = get_datasets_from_logs(logs, options.train_on_autonomous_center)
     history = model.fit(train_X, train_Y, validation_data=(val_X, val_Y), epochs=10, callbacks=model_callback_list())
 
     draw_plot(

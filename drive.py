@@ -1,8 +1,7 @@
+import argparse
 import base64
 import glob
 import os
-import sys
-from getopt import getopt
 from io import BytesIO
 
 import eventlet.wsgi
@@ -22,22 +21,6 @@ speed_limit: int = 10
 sum_error: float = 0.0
 
 grayscale_model: bool = False
-
-cli_longopts = [
-    "debug",
-    "file=",
-    "save-image-to=",
-]
-
-opts, args = getopt(sys.argv[1:], shortopts="", longopts=cli_longopts)
-
-for opt, arg in opts:
-    if opt == "debug":
-        debug = True
-    elif opt == "--file":
-        file = arg
-    elif opt == "--save-image-to":
-        save_image_to = arg
 
 server = socketio.Server()
 app = Flask(import_name="ISY503 A3 Group 5")
@@ -88,7 +71,7 @@ def event_telemetry_handler(sig: str, msg: dict):
         if grayscale_model:
             img = grayscale(img)
 
-        if np.random.rand() < 0.1:
+        if options.debug is True and np.random.rand() < 0.1:
             img.save("debug_autonomous_driving.jpg")
 
         image_array = np.asarray(img).reshape([1, cropped_height(), cropped_width(), origin_colours])
@@ -102,11 +85,11 @@ def event_telemetry_handler(sig: str, msg: dict):
             "sum_error": sum_error,
         }
 
-        if debug is True:
+        if options.debug is True:
             print(control)
 
-        if save_image_to != "":
-            save_autonomous_image(save_image_to, origin, steering)
+        if options.save_image_to != "":
+            save_autonomous_image(options.save_image_to, origin, steering)
 
     server.emit(mode, data=control, skip_sid=True)
 
@@ -114,17 +97,23 @@ def event_telemetry_handler(sig: str, msg: dict):
 server.on('connect', event_connect_handler)
 server.on('telemetry', event_telemetry_handler)
 
-if file == "" and os.path.exists("model.h5"):
-    file = "model.h5"
+cli_opts = argparse.ArgumentParser()
+cli_opts.add_argument('--debug', default=True, action='store_true', help='Debug mode')
+cli_opts.add_argument('--file', nargs='?', default='', help='Path to file with saved model')
+cli_opts.add_argument('--save-image-to', nargs='?', default='', help='Path to directory where to save autonomous data')
+options = cli_opts.parse_args()
 
-if file == "":
+if options.file == "" and os.path.exists("model.h5"):
+    options.file = "model.h5"
+
+if options.file == "":
     models = glob.glob("./model-2023-*")
     models.sort(reverse=False)
-    file = os.path.basename(models[-1])
+    options.file = os.path.basename(models[-1])
 
-print("Model %s is chosen to be used as a target" % file)
+print("Model %s is chosen to be used as a target" % options.file)
 
-model = load_model(file, safe_mode=False)
+model = load_model(options.file, safe_mode=False)
 
 model_config = model.get_config()
 input_shape = model_config['layers'][0]['config']['batch_input_shape']
