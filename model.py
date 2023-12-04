@@ -92,7 +92,7 @@ def add_gray_layer_to_rgb_image(rgb: Image) -> np.ndarray:
 def equalize(img: Image) -> Image:
     equalized = ImageOps.equalize(img)
 
-    if options.debug and np.random.rand() < 0.001:
+    if np.random.rand() < 0.001:
         img.save("debug_augmentation_equalize_origin.jpg")
         equalized.save("debug_augmentation_equalize_processed.jpg")
 
