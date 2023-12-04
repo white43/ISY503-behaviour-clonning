@@ -19,9 +19,6 @@ from pandas import Series
 
 print(tf.__version__)
 
-extra_steering: float = 0.2
-validation_data_percent: float = 0.3
-
 origin_image_width: int = 320
 origin_image_height: int = 160
 origin_colours: int = 3
@@ -120,33 +117,33 @@ def is_autonomous_row(row: Series) -> bool:
     return pd.isna(row['right']) and pd.isna(row['left'])
 
 
-def get_unit_of_data_from_autonomous_data(row: Series, steering: float) -> (Image, float):
+def get_unit_of_data_from_autonomous_data(row: Series, steering: float, extra_angle: float) -> (Image, float):
     if is_autonomous_row(row):
         image = Image.open(row['center'])
     else:
         match np.random.choice(2):
             case 0:
                 image = Image.open(row['left'])
-                steering += extra_steering
+                steering += extra_angle
             case 1:
                 image = Image.open(row['right'])
-                steering -= extra_steering
+                steering -= extra_angle
             case _:
                 raise Exception("unexpected choice")
 
     return image, steering
 
 
-def get_unit_of_data_from_human_gathered_data(row: Series, steering: float) -> (Image, float):
+def get_unit_of_data_from_human_gathered_data(row: Series, steering: float, extra_angle: float) -> (Image, float):
     match np.random.choice(3):
         case 0:
             image = Image.open(row['center'])
         case 1:
             image = Image.open(row['left'])
-            steering += extra_steering
+            steering += extra_angle
         case 2:
             image = Image.open(row['right'])
-            steering -= extra_steering
+            steering -= extra_angle
         case _:
             raise Exception("unexpected choice")
 
@@ -176,7 +173,7 @@ def get_driving_logs(dirs: list[str]) -> pd.DataFrame:
     return pd.concat(clear_data_list)
 
 
-def get_datasets_from_logs(logs: pd.DataFrame, autonomous: bool) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
+def get_datasets_from_logs(logs: pd.DataFrame, autonomous: bool, validation_data_percent: float, extra_angle: float) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
     train_x: list[np.ndarray] = []
     train_y: list[np.ndarray] = []
 
@@ -187,9 +184,9 @@ def get_datasets_from_logs(logs: pd.DataFrame, autonomous: bool) -> (np.ndarray,
         steering = row['steering']
 
         if autonomous:
-            image, steering = get_unit_of_data_from_autonomous_data(row, steering)
+            image, steering = get_unit_of_data_from_autonomous_data(row, steering, extra_angle)
         else:
-            image, steering = get_unit_of_data_from_human_gathered_data(row, steering)
+            image, steering = get_unit_of_data_from_human_gathered_data(row, steering, extra_angle)
 
         training_image = np.random.rand() > validation_data_percent
 
@@ -286,6 +283,9 @@ if __name__ == '__main__':
     cli_opts.add_argument('--sources', nargs='+', help='Path to datasets: --sources Track-1/f1 Track-1/b1', required=True)
     cli_opts.add_argument('--train-on-autonomous-center', default=False, action='store_true', help='Whether to use only autonomous center images or not')
     cli_opts.add_argument('--print-only', default=False, action='store_true', help='Print information on layers end exit')
+    cli_opts.add_argument('--epochs', type=int, default=10, help='Number of epochs of training')
+    cli_opts.add_argument('--validation-data-percent', type=float, default=0.3, help='The size of validation dataset [0, 1]')
+    cli_opts.add_argument('--extra-angle', type=float, default=0.2, help='This extra value will be added when the car diverges from the center')
     options = cli_opts.parse_args()
 
     model = build_model()
@@ -295,8 +295,15 @@ if __name__ == '__main__':
         exit(0)
 
     logs = get_driving_logs(options.sources)
-    train_X, train_Y, val_X, val_Y = get_datasets_from_logs(logs, options.train_on_autonomous_center)
-    history = model.fit(train_X, train_Y, validation_data=(val_X, val_Y), epochs=10, callbacks=model_callback_list())
+
+    train_X, train_Y, val_X, val_Y = get_datasets_from_logs(
+        logs,
+        options.train_on_autonomous_center,
+        options.validation_data_percent,
+        options.extra_angle,
+    )
+
+    history = model.fit(train_X, train_Y, validation_data=(val_X, val_Y), epochs=options.epochs, callbacks=model_callback_list())
 
     draw_plot(
         history.params['epochs'],
