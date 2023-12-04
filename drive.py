@@ -13,11 +13,6 @@ from keras.models import load_model
 
 from model import crop, cropped_width, cropped_height, origin_colours, save_autonomous_image, grayscale, equalize
 
-debug: bool = True
-
-file: str = ""
-save_image_to: str = ""
-speed_limit: int = 10
 sum_error: float = 0.0
 
 grayscale_model: bool = False
@@ -25,8 +20,15 @@ grayscale_model: bool = False
 server = socketio.Server()
 app = Flask(import_name="ISY503 A3 Group 5")
 
+cli_opts = argparse.ArgumentParser()
+cli_opts.add_argument('--debug', default=True, action='store_true', help='Debug mode')
+cli_opts.add_argument('--file', type=str, default='', help='Path to file with saved model')
+cli_opts.add_argument('--save-image-to', type=str, default='', help='Path to directory where to save autonomous data')
+cli_opts.add_argument('--speed_limit', type=float, default=10.0, help='The model will try to not exceed this speed')
+options = cli_opts.parse_args()
 
-def choose_throttle(speed: float) -> float:
+
+def choose_throttle(speed: float, speed_limit: float) -> float:
     global sum_error
     delta = 0.25
     throttle = 0.0
@@ -52,7 +54,7 @@ def event_connect_handler(sid: str, _: dict):
 
 
 def event_telemetry_handler(sig: str, msg: dict):
-    global sum_error
+    global sum_error, options
 
     mode: str = "manual"
     control: dict[str, str] = {}
@@ -81,7 +83,7 @@ def event_telemetry_handler(sig: str, msg: dict):
 
         control = {
             "steering_angle": steering.__str__(),
-            "throttle": choose_throttle(speed).__str__(),
+            "throttle": choose_throttle(speed, options.speed_limit).__str__(),
             "sum_error": sum_error,
         }
 
@@ -96,12 +98,6 @@ def event_telemetry_handler(sig: str, msg: dict):
 
 server.on('connect', event_connect_handler)
 server.on('telemetry', event_telemetry_handler)
-
-cli_opts = argparse.ArgumentParser()
-cli_opts.add_argument('--debug', default=True, action='store_true', help='Debug mode')
-cli_opts.add_argument('--file', nargs='?', default='', help='Path to file with saved model')
-cli_opts.add_argument('--save-image-to', nargs='?', default='', help='Path to directory where to save autonomous data')
-options = cli_opts.parse_args()
 
 if options.file == "" and os.path.exists("model.h5"):
     options.file = "model.h5"
