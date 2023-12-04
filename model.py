@@ -120,19 +120,19 @@ def equalize(img: Image) -> Image:
 
 
 def save_autonomous_image(path: str, image: Image, steering: float) -> None:
-    img_subdir: str = "/IMG/"
+    img_subdir: str = "IMG"
     write_mode = "a"
 
     if not os.path.exists(path):
-        pathlib.Path(path + img_subdir).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(os.path.join(path, img_subdir)).mkdir(parents=True, exist_ok=True)
         write_mode = "w"
 
     basename = dt.now().strftime("%Y-%m-%d-%H-%M-%S-%f") + ".jpg"
-    image.save(path + img_subdir + basename)
+    image.save(os.path.join(path, img_subdir, basename))
 
-    with open(path + "/driving_log.csv", write_mode) as fd:
+    with open(os.path.join(path, "driving_log.csv"), write_mode) as fd:
         writer = csv.writer(fd)
-        writer.writerow([img_subdir + basename, "", "", str(steering)])
+        writer.writerow([img_subdir + "/" + basename, "", "", str(steering)])
         fd.close()
 
 
@@ -180,7 +180,7 @@ def get_driving_logs(dirs: list[str]) -> pd.DataFrame:
         print("Reading " + dir, file=sys.stderr)
 
         csv = pd.read_csv(
-            dir + '/driving_log.csv',
+            os.path.join(dir, 'driving_log.csv'),
             delimiter=',',
             names=['center', 'left', 'right', 'steering'],
             usecols=[0, 1, 2, 3],
@@ -188,7 +188,8 @@ def get_driving_logs(dirs: list[str]) -> pd.DataFrame:
 
         for column in ['center', 'left', 'right']:
             if csv[column].count() > 0:
-                csv[column] = csv[column].map(lambda path: "%s/%s" % (dir, "/".join(path.split('/')[-2:])))
+                separator = "/" if "/" in csv[column][0] else "\\"
+                csv[column] = csv[column].map(lambda path: os.path.join(dir, *path.split(separator)[-2:]))
 
         clear_data_list.append(csv)
 
