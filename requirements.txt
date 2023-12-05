@@ -5,3 +5,4 @@ numpy>=1, <2
 pandas>=2, <3
 Pillow-SIMD>=9, <10
 python-socketio==4.2.1
+tensorflow==2.15.0
