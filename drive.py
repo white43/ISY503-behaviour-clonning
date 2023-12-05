@@ -17,6 +17,7 @@ sum_error: float = 0.0
 
 grayscale_model: bool = False
 
+# Initialize Socker.IO web server and Flask web application
 server = socketio.Server()
 app = Flask(import_name="ISY503 A3 Group 5")
 
@@ -62,22 +63,29 @@ def event_telemetry_handler(sig: str, msg: dict):
     if msg:
         mode = "steer"
 
+        # Read input data from JSON
         img_center = msg["image"]
         speed = float(msg["speed"])
+        # Convert base64-encoded image to PIL.Image object
         img = Image.open(BytesIO(base64.b64decode(img_center)))
         origin = img
 
+        # Preprocessing
         img = crop(img)
         img = equalize(img)
 
+        # Convert image to grayscale palette if the model was trained on grayscale images
         if grayscale_model:
             img = grayscale(img)
 
         if options.debug is True and np.random.rand() < 0.1:
             img.save("debug_autonomous_driving.jpg")
 
+        # Input 0 of layer "sequential" is incompatible with the layer: expected shape=(None, 80, 320, 3), found
+        # shape=(None, 320, 3)
         image_array = np.asarray(img).reshape([1, cropped_height(), cropped_width(), origin_colours])
 
+        # Getting steering angles from the trained model
         predicted = model.predict(image_array, verbose=0)
         steering = round(float(predicted[0][0]), 3)
 
@@ -90,18 +98,22 @@ def event_telemetry_handler(sig: str, msg: dict):
         if options.debug is True:
             print(control)
 
+        # Save autonomous images for further training on them
         if options.save_image_to != "":
             save_autonomous_image(options.save_image_to, origin, steering)
 
+    # Send answer back to the simulator
     server.emit(mode, data=control, skip_sid=True)
 
 
+# Associate Socket.IO's frames with their handlers
 server.on('connect', event_connect_handler)
 server.on('telemetry', event_telemetry_handler)
 
 if options.file == "" and os.path.exists("model.h5"):
     options.file = "model.h5"
 
+# Choose the last saved model on disk
 if options.file == "":
     models = glob.glob("./model-2023-*")
     models.sort(reverse=False)
@@ -109,16 +121,19 @@ if options.file == "":
 
 print("Model %s is chosen to be used as a target" % options.file)
 
+# Loading saved model. There will be errors without safe_mode=False.
 model = load_model(options.file, safe_mode=False)
 
 model_config = model.get_config()
 input_shape = model_config['layers'][0]['config']['batch_input_shape']
 
+# If we're using a grayscale-model, we will need to convert input images to grayscale as well
 if input_shape[3] == 1:
     origin_colours = input_shape[3]
     grayscale_model = True
     print("This model is trained on grayscale images. Colour setting have been adjusted...")
 
 
+# Listen to 4567 port which is used to receive input data from the simulator
 app = socketio.Middleware(server, app)
 eventlet.wsgi.server(eventlet.listen(('', 4567)), app)
