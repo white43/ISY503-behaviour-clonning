@@ -2,8 +2,8 @@
 
 ## Instructions
 
-1. Clone this repository `git clone https://github.com/white43/ISY503-behaviour-clonning.git`
-2. `cd ISY503-behaviour-clonning`
+1. Clone this repository `git clone https://github.com/white43/ISY503-behavioral-cloning.git`
+2. `cd ISY503-behavioral-cloning`
 3. Download datasets (see below)
 4. Unpack `Track-1.zip` and `Track-2.zip` to `Track-1` and `Track-2` directories 
 5. Basic check that everything is correct so far: `ls -l Track-{1,2}/f1/driving_log.csv` should list two files
