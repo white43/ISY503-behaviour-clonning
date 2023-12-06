@@ -3,6 +3,7 @@ flask>=3, <4
 keras>=2, <3
 numpy>=1, <2
 pandas>=2, <3
-Pillow-SIMD>=9, <10
+Pillow>=9, <10
 python-socketio==4.2.1
 tensorflow==2.15.0
+matplotlib==3.8.2
