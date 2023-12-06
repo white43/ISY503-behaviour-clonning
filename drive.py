@@ -36,6 +36,9 @@ def choose_throttle(speed: float, speed_limit: float) -> float:
 
     sum_error += speed_limit - speed
 
+    if sum_error > 100:
+        sum_error = 100
+
     if abs(speed_limit - speed) > delta:
         throttle = ((1.0 - speed / speed_limit) * 1.5) + (sum_error * 0.0025)
 
