@@ -13,8 +13,6 @@ from keras.models import load_model
 
 from model import crop, cropped_width, cropped_height, origin_colours, save_autonomous_image, grayscale, equalize
 
-sum_error: float = 0.0
-
 grayscale_model: bool = False
 
 # Initialize Socker.IO web server and Flask web application
@@ -25,22 +23,16 @@ cli_opts = argparse.ArgumentParser()
 cli_opts.add_argument('--debug', default=True, action='store_true', help='Debug mode')
 cli_opts.add_argument('--file', type=str, default='', help='Path to file with saved model')
 cli_opts.add_argument('--save-image-to', type=str, default='', help='Path to directory where to save autonomous data')
-cli_opts.add_argument('--speed_limit', type=float, default=10.0, help='The model will try to not exceed this speed')
+cli_opts.add_argument('--speed-limit', type=float, default=12.0, help='The model will try to not exceed this speed')
 options = cli_opts.parse_args()
 
 
 def choose_throttle(speed: float, speed_limit: float) -> float:
-    global sum_error
     delta = 0.25
     throttle = 0.0
 
-    sum_error += speed_limit - speed
-
-    if sum_error > 100:
-        sum_error = 100
-
     if abs(speed_limit - speed) > delta:
-        throttle = ((1.0 - speed / speed_limit) * 1.5) + (sum_error * 0.0025)
+        throttle = ((1.0 - speed / speed_limit) * 1.5)
 
         if throttle > 1:
             throttle = 1
@@ -58,7 +50,7 @@ def event_connect_handler(sid: str, _: dict):
 
 
 def event_telemetry_handler(sig: str, msg: dict):
-    global sum_error, options
+    global options
 
     mode: str = "manual"
     control: dict[str, str] = {}
@@ -95,7 +87,6 @@ def event_telemetry_handler(sig: str, msg: dict):
         control = {
             "steering_angle": steering.__str__(),
             "throttle": choose_throttle(speed, options.speed_limit).__str__(),
-            "sum_error": sum_error,
         }
 
         if options.debug is True:
