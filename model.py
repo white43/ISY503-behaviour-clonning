@@ -10,11 +10,11 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from PIL import Image, ImageFilter, ImageOps
-from keras.callbacks import Callback, ModelCheckpoint
-from keras.layers import Conv2D, Dense, Dropout, Flatten, Rescaling
-from keras.losses import MSE
-from keras.models import Sequential
-from keras.optimizers import Adam
+from keras.api.callbacks import Callback, ModelCheckpoint
+from keras.api.layers import Conv2D, Dense, Dropout, Flatten, Input, Rescaling
+from keras.api.losses import MeanSquaredError
+from keras.api.models import Sequential
+from keras.api.optimizers import Adam
 from pandas import Series
 
 print(tf.__version__)
@@ -425,9 +425,10 @@ def build_model() -> Sequential:
     :return:
     """
     model = Sequential()
+    model.add(Input(shape=(cropped_height(), cropped_width(), origin_colours), batch_size=64))
 
     # The first layer rescales input values from [0, 255] format to [-1, 1]
-    model.add(Rescaling(1.0/127.5, offset=-1, input_shape=(cropped_height(), cropped_width(), origin_colours)))
+    model.add(Rescaling(1.0/127.5, offset=-1))
     # Several layers to convolve input data from (320, 80, 3) shape to (1, 15, 96) feature maps along with rectified
     # linear unit (ReLU) activation functions
     model.add(Conv2D(filters=32, kernel_size=(3, 3), strides=(3, 3), activation="relu"))
@@ -449,10 +450,10 @@ def build_model() -> Sequential:
     # Output layer
     model.add(Dense(units=1))
 
-    # Mean squared error (MSE) loss function to calculate errors between labels and predictions
+    # Mean squared error (MeanSquaredError) loss function to calculate errors between labels and predictions
     # Adam optimization is a stochastic gradient descent method that is based on adaptive estimation of first-order and
     # second-order moments.
-    model.compile(loss=MSE, optimizer=Adam(learning_rate=0.001))
+    model.compile(loss=MeanSquaredError(), optimizer=Adam(learning_rate=0.0001))
 
     return model
 
@@ -465,7 +466,7 @@ def draw_plot(iterations, *args):
     plt.ylabel('Loss')
     plt.legend(loc='best', fontsize='small')
 
-    plt.savefig("Loss history.jpg")
+    plt.savefig("loss-history-{}.jpg".format(started_at.strftime("%Y-%m-%d-%H-%M-%S")))
 
 
 def model_callback_list() -> list[Callback]:
@@ -474,7 +475,7 @@ def model_callback_list() -> list[Callback]:
     list.append(
         # Saves model to disk once validation loss after this epoch is lower than after previous one
         ModelCheckpoint(
-            "model-{}.h5".format(dt.now().strftime("%Y-%m-%d-%H-%M-%S")),
+            "model-{}.keras".format(started_at.strftime("%Y-%m-%d-%H-%M-%S")),
             monitor="val_loss",
             mode="min",
             verbose=1,
@@ -486,12 +487,14 @@ def model_callback_list() -> list[Callback]:
 
 
 if __name__ == '__main__':
+    started_at = dt.now()
+
     cli_opts = argparse.ArgumentParser()
     cli_opts.add_argument('--debug', default=True, action='store_true', help='Debug mode')
     cli_opts.add_argument('--sources', nargs='+', help='Path to datasets: --sources Track-1/f1 Track-1/b1', required=True)
     cli_opts.add_argument('--train-on-autonomous-center', default=False, action='store_true', help='Whether to use only autonomous center images or not')
     cli_opts.add_argument('--print-only', default=False, action='store_true', help='Print information on layers end exit')
-    cli_opts.add_argument('--epochs', type=int, default=10, help='Number of epochs of training')
+    cli_opts.add_argument('--epochs', type=int, default=15, help='Number of epochs of training')
     cli_opts.add_argument('--validation-data-percent', type=float, default=0.3, help='The size of validation dataset [0, 1]')
     cli_opts.add_argument('--extra-angle', type=float, default=0.2, help='This extra value will be added when the car diverges from the center')
     options = cli_opts.parse_args()

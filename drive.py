@@ -9,7 +9,7 @@ import numpy as np
 import socketio
 from PIL import Image
 from flask import Flask
-from keras.models import load_model
+from keras.api.models import load_model
 
 from model import crop, cropped_width, cropped_height, origin_colours, save_autonomous_image, grayscale, equalize
 
@@ -104,14 +104,20 @@ def event_telemetry_handler(sig: str, msg: dict):
 server.on('connect', event_connect_handler)
 server.on('telemetry', event_telemetry_handler)
 
-if options.file == "" and os.path.exists("model.h5"):
-    options.file = "model.h5"
+if options.file == "" and os.path.exists("model.keras"):
+    options.file = "model.keras"
 
 # Choose the last saved model on disk
 if options.file == "":
-    models = glob.glob("./model-2023-*")
+    models = glob.glob("./model-202?-*.keras")
     models.sort(reverse=False)
-    options.file = os.path.basename(models[-1])
+
+    if len(models) > 0:
+        options.file = os.path.basename(models[-1])
+
+if options.file == "":
+    print("No trained model found to drive")
+    exit(1)
 
 print("Model %s is chosen to be used as a target" % options.file)
 
@@ -119,7 +125,7 @@ print("Model %s is chosen to be used as a target" % options.file)
 model = load_model(options.file, safe_mode=False)
 
 model_config = model.get_config()
-input_shape = model_config['layers'][0]['config']['batch_input_shape']
+input_shape = model_config['layers'][0]['config']['batch_shape']
 
 # If we're using a grayscale-model, we will need to convert input images to grayscale as well
 if input_shape[3] == 1:

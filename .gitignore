@@ -1,4 +1,4 @@
 .idea
 debug_*.jpg
-model-*.h5
+model-*.keras
 Track-*

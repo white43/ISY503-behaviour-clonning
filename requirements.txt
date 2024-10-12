@@ -1,9 +1,9 @@
-eventlet>=0.33, <0.34
+eventlet>=0.37, <0.38
 flask>=3, <4
-keras>=2, <3
+keras>=3, <4
 numpy>=1, <2
 pandas>=2, <3
 Pillow>=9, <10
 python-socketio==4.2.1
-tensorflow==2.15.0
+tensorflow==2.17.0
 matplotlib==3.8.2

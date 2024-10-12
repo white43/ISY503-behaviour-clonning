@@ -32,8 +32,11 @@ python model.py --sources Track-2/f1 Track-2/f2 Track-2/fa1 Track-2/b1 Track-2/b
 
 ## Driving
 
+Download model via the link `https://torrens-files.s3.ap-southeast-2.amazonaws.com/ISY503/model.keras` and save it 
+to the project directory. Then run the below command.
+
 ```commandline
-python drive.py --file model.h5
+python drive.py --file model.keras
 ```
 
 ## Gathering autonomous data for training
@@ -42,7 +45,7 @@ python drive.py --file model.h5
 2. Start driving with a special command line argument `--save-image-to`
 
 ```commandline
-python drive.py --file model.h5 --save-image-to path/to/directory
+python drive.py --file model.keras --save-image-to path/to/directory
 ```
 
 ## Training on gathered autonomous data
