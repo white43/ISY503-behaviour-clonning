@@ -1,5 +1,6 @@
 import argparse
 import csv
+import math
 import os
 import pathlib
 import sys
@@ -15,6 +16,7 @@ from keras.api.layers import Conv2D, Dense, Dropout, Flatten, Input, Rescaling
 from keras.api.losses import MeanSquaredError
 from keras.api.models import Sequential
 from keras.api.optimizers import Adam
+from keras.src.callbacks import TensorBoard
 from pandas import Series
 
 print(tf.__version__)
@@ -335,55 +337,53 @@ def get_driving_logs(dirs: list[str]) -> pd.DataFrame:
 
         clear_data_list.append(csv)
 
-    return pd.concat(clear_data_list)
+    return pd.concat(clear_data_list, ignore_index=True)
 
 
-def get_datasets_from_logs(logs: pd.DataFrame, autonomous: bool, validation_data_percent: float, extra_angle: float) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
-    """ This function is one of the core functions. It takes a pandas.DataFrame object from ``get_driving_logs`` and
-    return preprocessed and augmented training data set along with validation dataset. The proportion between them is
-    controlled by ``validation_data_percent`` argument.
+class DataSequence(tf.keras.utils.Sequence):
+    """ This class is one of the core functions. It takes a pandas.DataFrame object from ``get_driving_logs`` and
+        returns preprocessed and augmented training data set along with validation dataset.
 
-    Parameters
-    ----------
-    logs : DataFrame
-        A product of ``get_driving_logs`` function to prepare images
-    autonomous : bool
-        Whether train on autonomously-gathered center images and human-gathered left and right images, or use only
-        human-gathered center, left, and right images.
-    validation_data_percent : float
-        The percent of the validation dataset of the total size of the dataset
-    extra_angle : float
-        The extra value needs to be added or subtracted from a steering angle. It's used to instruct the car how to get
-        back to the center of the road.
+        Parameters
+        ----------
+        logs : DataFrame
+            A product of ``get_driving_logs`` function to prepare images
+        batch_size: int
+            The number of images that will be used in a single forward-backward pass
+        autonomous : bool
+            Whether train on autonomously-gathered center images and human-gathered left and right images, or use only
+            human-gathered center, left, and right images.
+        extra_angle : float
+            The extra value needs to be added or subtracted from a steering angle. It's used to instruct the car how to get
+            back to the center of the road."""
 
-    Returns
-    -------
-    ndarray
-        Training dataset
-    ndarray
-        Training dataset label variable
-    ndarray
-        Validation dataset
-    ndarray
-        Validation dataset label variable
-    """
-    train_x: list[np.ndarray] = []
-    train_y: list[np.ndarray] = []
+    def __init__(self, logs: pd.DataFrame, batch_size: int, autonomous: bool, extra_angle: float, **kwargs):
+        """
+            """
+        super().__init__(**kwargs)
+        self.logs = logs
+        self.batch_size = batch_size
+        self.autonomous = autonomous
+        self.extra_angle = extra_angle
 
-    val_x: list[np.ndarray] = []
-    val_y: list[np.ndarray] = []
+    def __len__(self):
+        return math.ceil(len(self.logs) / self.batch_size)
 
-    for index, row in logs.iterrows():
-        steering = row['steering']
+    def __getitem__(self, index) -> (np.ndarray, np.ndarray):
+        low = index * self.batch_size
+        high = low + self.batch_size
 
-        if autonomous:
-            image, steering = get_unit_of_data_from_autonomous_data(row, steering, extra_angle)
-        else:
-            image, steering = get_unit_of_data_from_human_gathered_data(row, steering, extra_angle)
+        x: list[np.ndarray] = []
+        y: list[np.ndarray] = []
 
-        training_image = np.random.rand() > validation_data_percent
+        for _, row in self.logs.iloc[low:high].iterrows():
+            steering = row['steering']
 
-        if training_image:
+            if self.autonomous:
+                image, steering = get_unit_of_data_from_autonomous_data(row, steering, self.extra_angle)
+            else:
+                image, steering = get_unit_of_data_from_human_gathered_data(row, steering, self.extra_angle)
+
             if np.random.rand() < 0.5:
                 image = flip_horizontally(image)
                 steering *= -1
@@ -395,27 +395,26 @@ def get_datasets_from_logs(logs: pd.DataFrame, autonomous: bool, validation_data
             #     image = grayscale(image)
             #     image = three_dimensional_grayscale(image)
 
-        image = image.crop((
-            crop_left,
-            crop_top,
-            origin_image_width - crop_right,
-            origin_image_height - crop_bottom,
-        ))
+            image = image.crop((
+                crop_left,
+                crop_top,
+                origin_image_width - crop_right,
+                origin_image_height - crop_bottom,
+            ))
 
-        image = equalize(image)
+            image = equalize(image)
 
-        # image = add_gray_layer_to_rgb_image(image)
+            # image = add_gray_layer_to_rgb_image(image)
 
-        image = np.asarray(image)
+            image = np.asarray(image)
 
-        if training_image:
-            train_x.append(image)
-            train_y.append(steering)
-        else:
-            val_x.append(image)
-            val_y.append(steering)
+            x.append(image)
+            y.append(steering)
 
-    return np.asarray(train_x), np.asarray(train_y), np.asarray(val_x), np.asarray(val_y)
+        return np.asarray(x), np.asarray(y)
+
+    def on_epoch_end(self):
+        self.logs = self.logs.sample(frac=1)
 
 
 def build_model() -> Sequential:
@@ -425,7 +424,7 @@ def build_model() -> Sequential:
     :return:
     """
     model = Sequential()
-    model.add(Input(shape=(cropped_height(), cropped_width(), origin_colours), batch_size=64))
+    model.add(Input(shape=(cropped_height(), cropped_width(), origin_colours)))
 
     # The first layer rescales input values from [0, 255] format to [-1, 1]
     model.add(Rescaling(1.0/127.5, offset=-1))
@@ -470,18 +469,17 @@ def draw_plot(iterations, *args):
 
 
 def model_callback_list() -> list[Callback]:
-    list: list[Callback] = []
-
-    list.append(
-        # Saves model to disk once validation loss after this epoch is lower than after previous one
+    list: list[Callback] = [
         ModelCheckpoint(
             "model-{}.keras".format(started_at.strftime("%Y-%m-%d-%H-%M-%S")),
             monitor="val_loss",
             mode="min",
-            verbose=1,
             save_best_only=True,
         ),
-    )
+        TensorBoard(
+            log_dir="logs/%s" % started_at,
+        ),
+    ]
 
     return list
 
@@ -509,17 +507,33 @@ if __name__ == '__main__':
     # Reads driving_log.csv files and combines them info a single pandas.DataFrame object
     logs = get_driving_logs(options.sources)
 
+    df_val = logs.sample(frac=options.validation_data_percent)
+    df_train = logs.drop(df_val.index).sample(frac=1)
+
     # Performs preprocessing, augmentation, and returns a list of training and validating datasets based on the combined
     # of one of several sub-datasets.
-    train_X, train_Y, val_X, val_Y = get_datasets_from_logs(
-        logs,
+    train_sequence = DataSequence(
+        df_train,
+        32,
         options.train_on_autonomous_center,
-        options.validation_data_percent,
+        options.extra_angle,
+    )
+
+    val_sequence = DataSequence(
+        df_val,
+        32,
+        options.train_on_autonomous_center,
         options.extra_angle,
     )
 
     # Trains the build model on datasets
-    history = model.fit(train_X, train_Y, validation_data=(val_X, val_Y), epochs=options.epochs, callbacks=model_callback_list())
+    history = model.fit(
+        train_sequence,
+        validation_data=val_sequence,
+        epochs=options.epochs,
+        batch_size=32,
+        callbacks=model_callback_list(),
+    )
 
     # Saves a history graph showing training and validation losses
     draw_plot(

@@ -18,13 +18,13 @@ If you're a human, remove 32-character-long random string and one dot from the f
 
 ## Training
 
-Run the following command to train your model to drive on Track 1 (needs about 4GB of free memory):
+Run the following command to train your model to drive on Track 1:
 
 ```commandline
 python model.py --sources Track-1/f1 Track-2/b1 Track-1/fa1 Track-2/ba1 --train-on-autonomous-center
 ```
 
-And the following command is for Track 2 (requires about 10GB of free memory):
+And the following command is for Track 2:
 
 ```commandline
 python model.py --sources Track-2/f1 Track-2/f2 Track-2/fa1 Track-2/b1 Track-2/b2 Track-2/ba1 --train-on-autonomous-center
